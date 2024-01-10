@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -21,7 +22,9 @@ import java.util.regex.Pattern;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
+import com.yuxie.demo.status.DownStatus;
 
 public class VideoMessageFetcher {
 
@@ -63,9 +66,15 @@ public class VideoMessageFetcher {
 
             if (matcher.find()) {
                 String videoPlayInfoMsg = matcher.group(1);
-                String videoMsgStr = videoPlayInfoMsg.split(";")[0];
-                JSONObject videoMsg = new Gson().fromJson(videoMsgStr, new TypeToken<JSONObject>() {
-                }.getType());
+                String videoMsgStr = videoPlayInfoMsg.split(Pattern.quote(";(function()"))[0];
+                JSONObject videoMsg = null ;
+                try {
+                    videoMsg = new Gson().fromJson(videoMsgStr, new TypeToken<JSONObject>() {
+                    }.getType());
+                } catch (JsonSyntaxException e) {
+                    Log.e(TAG,videoPlayInfoMsg +"\n"+videoMsgStr +"\n"+ Log.getStackTraceString(e));
+                    return Collections.emptyList();
+                }
                 JSONArray jsonArray = videoMsg.getJSONObject("videoData").getJSONArray("pages");
                 String innerUrl = "https://www.bilibili.com/video/" + videoMsg.getString("bvid");
                 String filename = "未知.mp3";
@@ -137,7 +146,7 @@ public class VideoMessageFetcher {
         }
     }
 
-    public static boolean downloadFile(String url, String homeUrl, String fileName) {
+    public static DownStatus downloadFile(String url, String homeUrl, String fileName) {
         OkHttpClient client = new OkHttpClient().newBuilder().build();
 
         // 获取外部存储的根目录
@@ -153,7 +162,7 @@ public class VideoMessageFetcher {
         if (!downloadDir.exists()) {
             if (!downloadDir.mkdirs()) {
                 Log.e(TAG, "Failed to create directory: " + downloadDir.getAbsolutePath());
-                return false;
+                return DownStatus.ERROR;
             }
         }
 
@@ -167,16 +176,19 @@ public class VideoMessageFetcher {
 
             // 构建文件路径
             File outputFile = new File(downloadDir, fileName);
-
+            if (outputFile.exists()) {
+                Log.i(TAG,fileName+"已存在，跳过下载");
+                return DownStatus.NODOWN;
+            }
             try (FileOutputStream fileOutputStream = new FileOutputStream(outputFile)) {
                 fileOutputStream.write(response.body().bytes());
                 fileOutputStream.flush();
             }
-            return true;
+            return DownStatus.OK;
         } catch (IOException e) {
             Log.e(TAG, Log.getStackTraceString(e));
         }
-        return false;
+        return DownStatus.ERROR;
     }
 
 }

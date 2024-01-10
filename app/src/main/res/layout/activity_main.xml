@@ -62,15 +62,30 @@
             android:textColor="#333"
             android:textSize="16sp" />
 
-        <TextView
+
+
+        <TableLayout
             android:id="@+id/resultLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="15dp">
+
+
+            <TableRow>
+                <TextView style="@style/TableTextStyle" android:text="文件名"/>
+                <TextView style="@style/TableTextStyle" android:text="下载状态"/>
+            </TableRow>
+            <!-- 表格内容，你可以在代码中动态添加行和数据 -->
+
+        </TableLayout>
+        <TextView
+            android:id="@+id/downMsg"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_margin="15dp"
-            android:text="等待下载"
+            android:text=""
             android:textColor="#333"
             android:textSize="16sp" />
-
 
 
     </LinearLayout>

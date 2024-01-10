@@ -1,0 +1,4 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#FFFFFF"/> <!-- 设置表格背景色 -->
+    <stroke android:color="#CCCCCC" android:width="1dp"/> <!-- 设置表格边框颜色和宽度 -->
+</shape>

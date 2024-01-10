@@ -8,8 +8,11 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.KeyEvent;
-import android.widget.LinearLayout;
+import android.view.ViewGroup;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -24,11 +27,14 @@ import com.blankj.utilcode.util.ToastUtils;
 import com.yuxie.baselib.utils.CommonUtils;
 import com.yuxie.baselib.base.BaseActivity;
 import com.yuxie.demo.R;
+import com.yuxie.demo.status.DownStatus;
 import com.yuxie.demo.widget.ClearEditText;
 import com.yuxie.demo.widget.VideoMessageFetcher;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -41,8 +47,9 @@ public class MainActivity extends BaseActivity {
     ClearEditText etUrl;
 
     Context mContext;
-    TextView resultLayout;
 
+    TableLayout tableLayout;
+    TextView downMsgView;
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 
@@ -61,8 +68,8 @@ public class MainActivity extends BaseActivity {
         setTitle("b站音频下载");
         tvExplain = findViewById(R.id.tvExplain);
         etUrl = findViewById(R.id.et_url);
-        resultLayout = findViewById(R.id.resultLayout);
-
+        tableLayout = findViewById(R.id.resultLayout);
+        downMsgView = findViewById(R.id.downMsg);
         findViewById(R.id.download).setOnClickListener(v -> {
             download();
         });
@@ -108,14 +115,6 @@ public class MainActivity extends BaseActivity {
         }
     }
 
-    private void openDouYinApp() {
-        Intent intent = new Intent();
-        ComponentName comp = new ComponentName("com.ss.android.ugc.aweme", "com.ss.android.ugc.aweme.splash.SplashActivity");
-        intent.setComponent(comp);
-        intent.setAction("android.intent.action.MAIN");
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
-    }
 
     private void download() {
         String url = etUrl.getText().toString();
@@ -137,32 +136,78 @@ public class MainActivity extends BaseActivity {
 
         String finalUrl = url;
 
-        resultLayout.setText("下载信息\n");
-        List<Boolean> flagList = new ArrayList<>();
+        List<DownStatus> flagList = new ArrayList<>();
+
+        tableLayout.removeAllViews();
+        downMsgView.setText("加载信息中。。。");
 
 
         executorService.execute(new Runnable() {
             @Override
             public void run() {
                 List<JSONObject> list = VideoMessageFetcher.getVideoMsgByBv(finalUrl);
+
+                // 遍历列表并添加到表格中
                 for (JSONObject object : list) {
                     String targetUrl = VideoMessageFetcher.getAudioUrl(object.getString("targetUrl"));
                     String filename = object.getString("filename");
+
+                    // 创建一个新的TableRow
+                    TableRow tableRow = new TableRow(MainActivity.this);
+
+                    // 创建两个TextView分别表示文件名和下载状态
+                    TextView filenameTextView = new TextView(MainActivity.this);
+                    filenameTextView.setText(filename);
+                    filenameTextView.setLayoutParams(new TableRow.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                    filenameTextView.setBackgroundResource(R.drawable.table_border);
+                    filenameTextView.setGravity(Gravity.CENTER);
+                    filenameTextView.setPadding(8, 8, 8, 8); // 根据需要调整
+                    filenameTextView.setMaxLines(1); // 设置最大显示行数为1行
+                    filenameTextView.setEllipsize(TextUtils.TruncateAt.END); // 在超过行数时显示省略号
+
+                    TextView statusTextView = new TextView(MainActivity.this);
+                    statusTextView.setLayoutParams(new TableRow.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                    statusTextView.setBackgroundResource(R.drawable.table_border);
+                    statusTextView.setGravity(Gravity.CENTER);
+                    statusTextView.setPadding(8, 8, 8, 8); // 根据需要调整
+                    statusTextView.setMaxLines(1); // 设置最大显示行数
+
+                    // 在主线程中更新UI组件
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             // 在主线程中更新UI组件
-                            resultLayout.append(filename + "下载中\n");
+                            statusTextView.setText(DownStatus.LOADING.getMsg());
+                            // 将TextView添加到TableRow中
+                            tableRow.addView(filenameTextView);
+                            tableRow.addView(statusTextView);
+
+                            // 将TableRow添加到TableLayout中
+                            tableLayout.addView(tableRow);
                         }
                     });
-                    boolean downFlag = VideoMessageFetcher.downloadFile(targetUrl, finalUrl, filename);
-                    flagList.add(downFlag);
-                    Log.i(this.getClass().getSimpleName(), filename + " 下载 " + (downFlag ? "成功" : "失败"));
+
+                    boolean downFlag = false;
+                    DownStatus downStatus = DownStatus.ERROR;
+                    for (int index = 0; (index < 5 && !downFlag); index++) {
+                        // 实际下载逻辑
+                        downStatus = VideoMessageFetcher.downloadFile(targetUrl, finalUrl, filename);
+                        downFlag = DownStatus.OK.equals(downStatus)||DownStatus.NODOWN.equals(downStatus);
+                        if (!downFlag) {
+                            Log.e("MAIN-ERROR",filename+"第"+index+"次尝试失败 url="+targetUrl +"\n 重置url");
+                            targetUrl = VideoMessageFetcher.getAudioUrl(object.getString("targetUrl"));
+                        }
+                    }
+                    flagList.add(downStatus);
+                    Log.i(this.getClass().getSimpleName(), filename + (downStatus.getMsg()));
+
+                    // 更新下载状态
+                    DownStatus finalDownStatus = downStatus;
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             // 在主线程中更新UI组件
-                            resultLayout.append(filename + "下载" + (downFlag ? "成功" : "失败") + "\n");
+                            statusTextView.setText(finalDownStatus.getMsg());
                         }
                     });
                 }
@@ -171,8 +216,14 @@ public class MainActivity extends BaseActivity {
                     @Override
                     public void run() {
                         // 在主线程中更新UI组件
-                        int countTrueValues = countTrueValues(flagList);
-                        resultLayout.append("下载已结束,下载统计:成功=" + countTrueValues + " 失败=" + (flagList.size() - countTrueValues));
+                        Map<String, Integer> countTrueValues = countTvShows(flagList);
+                        String downMsg = "下载已结束,下载统计:" +
+                                "总下载数="+flagList.size()+"; ";
+                        for (Map.Entry<String, Integer> entry : countTrueValues.entrySet()) {
+                            downMsg += entry.getKey() +"=" + entry.getValue()+"; ";
+                        }
+                        downMsgView.setText(downMsg);
+                        Log.i("TAG", downMsg);
                     }
                 });
             }
@@ -204,15 +255,21 @@ public class MainActivity extends BaseActivity {
         }
     }
 
-    public static int countTrueValues(List<Boolean> booleanList) {
-        int trueCount = 0;
 
-        for (boolean value : booleanList) {
-            if (value) {
-                trueCount++;
-            }
+    private static Map<String, Integer> countTvShows(List<DownStatus> tvShows) {
+        // 创建一个Map用于存储每个美剧及其出现次数
+        Map<String, Integer> tvShowCountMap = new HashMap<>();
+
+        for (DownStatus value : DownStatus.values()) {
+            tvShowCountMap.put(value.getMsg(),0);
         }
 
-        return trueCount;
+        // 遍历List，统计每个美剧出现的次数
+        for (DownStatus tvShow : tvShows) {
+            tvShowCountMap.put(tvShow.getMsg(),tvShowCountMap.get(tvShow.getMsg()) + 1);
+        }
+
+        return tvShowCountMap;
     }
+
 }
