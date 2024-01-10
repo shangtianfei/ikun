@@ -55,7 +55,6 @@ public class VideoMessageFetcher {
                 .addHeader("Refer", "")
                 .addHeader("er", "https://www.bilibili.com/")
                 .build();
-        //调用enqueue异步请求方式
         List<JSONObject> list = new ArrayList<>();
         try (Response response = client.newCall(request).execute()) {
             String responseBody = response.body().string();
@@ -174,6 +173,10 @@ public class VideoMessageFetcher {
         try {
             Response response = client.newCall(request).execute();
 
+            if (!response.isSuccessful()){
+                Log.e(TAG,"下载失败 response.code()="+response.code());
+                return DownStatus.ERROR;
+            }
             // 构建文件路径
             File outputFile = new File(downloadDir, fileName);
             if (outputFile.exists()) {

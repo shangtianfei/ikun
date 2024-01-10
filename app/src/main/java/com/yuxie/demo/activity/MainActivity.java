@@ -191,7 +191,7 @@ public class MainActivity extends BaseActivity {
                     DownStatus downStatus = DownStatus.ERROR;
                     for (int index = 0; (index < 5 && !downFlag); index++) {
                         // 实际下载逻辑
-                        downStatus = VideoMessageFetcher.downloadFile(targetUrl, finalUrl, filename);
+                        downStatus = VideoMessageFetcher.downloadFile(targetUrl, object.getString("targetUrl"), filename);
                         downFlag = DownStatus.OK.equals(downStatus)||DownStatus.NODOWN.equals(downStatus);
                         if (!downFlag) {
                             Log.e("MAIN-ERROR",filename+"第"+index+"次尝试失败 url="+targetUrl +"\n 重置url");
