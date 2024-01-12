@@ -21,10 +21,3 @@
 
 ![输入图片说明](resource/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20240111185441.jpg)
 
-下载地址:
-
- [下载地址]( https://gitee.com/mijin/bilibili_audit_down_phone/releases/latest)
-
-app截图:
-
-![app主页截图](./resource/1.png)![输入图片说明](%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20240111185441.jpg)
